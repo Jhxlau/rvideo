@@ -29,7 +29,7 @@ module RVideo
       
       before do
         @options = {:input_file => "foo", :output_file => "bar", :resolution => "baz"}
-        @simple_avi = "ffmpeg -i $input_file$ -ar 44100 -ab 64 -vcodec xvid -acodec mp3 -r 29.97 -s $resolution$ -y $output_file$"  
+        @simple_avi = "ffmpeg -i $input_file$ -ar 44100 -ab 64 -vcodec xvid -acodec mp3 -r 29.97 -y $output_file$"  
       end
       
       it "should set supported options successfully" do
@@ -53,24 +53,24 @@ module RVideo
       
       it "should interpolate variables successfully" do
         ffmpeg = Ffmpeg.new(@simple_avi, @options)
-        ffmpeg.command.should == "ffmpeg -i #{@options[:input_file]} -ar 44100 -ab 64 -vcodec xvid -acodec mp3 -r 29.97 -s #{@options[:resolution]} -y #{@options[:output_file]}"
+        ffmpeg.command.should == "ffmpeg -i #{@options[:input_file]} -ar 44100 -ab 64 -vcodec xvid -acodec mp3 -r 29.97 -y #{@options[:output_file]}"
       end
       
       it "the matched_variable method should reference the variable without $" do
         ffmpeg = Ffmpeg.new(@simple_avi, @options)
-        ffmpeg.matched_variable("$resolution$").should == "baz"
+        ffmpeg.send(:matched_variable, "$input_file$").should == "foo"
       end
 
       it "the matched_variable method should raise an error when the variable is not found" do
         ffmpeg = Ffmpeg.new(@simple_avi, @options)
         lambda {
-          ffmpeg.matched_variable("$foo$")
+          ffmpeg.send(:matched_variable, "$foo$")
         }.should raise_error(TranscoderError::ParameterError)
       end
       
       it "should raise an exception when a required variable isn't set (1)" do
         lambda {
-          ffmpeg = Ffmpeg.new(@simple_avi, {:input_file => "baz"})
+          ffmpeg = Ffmpeg.new(@simple_avi, {:output_file => "baz"})
         }.should raise_error(TranscoderError::ParameterError)
       end
       
@@ -82,7 +82,7 @@ module RVideo
       
       it "the should not raise an error when a variable is supplied but nil" do
         ffmpeg = Ffmpeg.new(@simple_avi, @options.merge(:resolution => nil))
-        ffmpeg.command.should == "ffmpeg -i #{@options[:input_file]} -ar 44100 -ab 64 -vcodec xvid -acodec mp3 -r 29.97 -s  -y #{@options[:output_file]}"
+        ffmpeg.command.should == "ffmpeg -i #{@options[:input_file]} -ar 44100 -ab 64 -vcodec xvid -acodec mp3 -r 29.97 -y #{@options[:output_file]}"
       end
       
       it 'should ignore escaped leading \$' do
@@ -98,14 +98,6 @@ module RVideo
       it 'should ignore two escaped \$' do
         ffmpeg = Ffmpeg.new('ffmpeg -i $input_file$ -ar 44100 -ab 64 -fakeoptions \$foo\$ -vcodec xvid -acodec mp3 -r 29.97 -s $resolution$ -y $output_file$', @options)
         ffmpeg.command.should == "ffmpeg -i #{@options[:input_file]} -ar 44100 -ab 64 -fakeoptions $foo$ -vcodec xvid -acodec mp3 -r 29.97 -s #{@options[:resolution]} -y #{@options[:output_file]}"
-      end
-      
-      it 'should access the original fps' do
-        @mock_inspector = mock("inspector")
-        Inspector.stub!(:new).and_return(@mock_inspector)
-        @mock_inspector.stub!(:fps).and_return 23.98
-        ffmpeg = Ffmpeg.new("ffmpeg -i $input_file$ -ar 44100 -ab 64 -vcodec xvid -acodec mp3 $original_fps$ -s $resolution$ -y $output_file$", @options)
-        ffmpeg.command.should == "ffmpeg -i #{@options[:input_file]} -ar 44100 -ab 64 -vcodec xvid -acodec mp3 -r 23.98 -s #{@options[:resolution]} -y #{@options[:output_file]}"
       end
     end
   end

@@ -12,7 +12,7 @@ module RVideo
       def original_fps
         inspect_original if @original.nil?
         if @original.fps
-          "-r #{@original.fps}" 
+          "-ofps #{@original.fps}" 
         else
           ""
         end

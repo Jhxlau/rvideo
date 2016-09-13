@@ -32,6 +32,10 @@ module RVideo
           raise TranscoderError::InvalidCommand, "command printed flvtool2 help text (and presumably didn't execute)"
         end
         
+        if m = /ERROR: undefined method .?timestamp.? for nil/.match(result)
+          raise TranscoderError::InvalidFile, "Output file was empty (presumably)"
+        end
+        
         if m = /\A---(.*)...\Z/m.match(result)
           @raw_metadata = m[0]
           return true

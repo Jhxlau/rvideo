@@ -1,8 +1,5 @@
 module RVideo
   class TranscoderError < RuntimeError
-    class RecipeError < TranscoderError
-    end
-    
     class InvalidCommand < TranscoderError
     end
   
@@ -19,6 +16,9 @@ module RVideo
     end
     
     class UnknownError < TranscoderError
+    end
+    
+    class UnknownTool < TranscoderError
     end
   end
 end

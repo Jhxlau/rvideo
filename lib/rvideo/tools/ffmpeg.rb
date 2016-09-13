@@ -3,7 +3,7 @@ module RVideo
     class Ffmpeg
       include AbstractTool::InstanceMethods
       
-      attr_reader :frame, :q, :size, :time, :bitrate, :video_size, :audio_size, :header_size, :overhead, :psnr, :fps
+      attr_reader :frame, :q, :size, :time, :output_bitrate, :video_size, :audio_size, :header_size, :overhead, :psnr, :output_fps
       
       # Not sure if this is needed anymore...
       def tool_command
@@ -34,6 +34,10 @@ module RVideo
           raise TranscoderError::InvalidCommand, m[0]
         end
         
+        if m = /Unknown codec \'(.*)\'/.match(result)
+          raise TranscoderError::InvalidFile, "Codec #{m[1]} not supported by this build of ffmpeg"
+       end
+        
         if m = /could not find codec parameters/.match(result)
           raise TranscoderError::InvalidFile, "Codec not supported by this build of ffmpeg"
         end
@@ -52,6 +56,28 @@ module RVideo
         
         if result =~ /usage: ffmpeg/
           raise TranscoderError::InvalidCommand, "must pass a command to ffmpeg"
+        end
+        
+        if result =~ /Output file does not contain.*stream/
+          raise TranscoderError, "Output file does not contain any video or audio streams."
+        end
+        
+        if m = /Unsupported codec.*id=(.*)\).*for input stream\s*(.*)\s*/.match(result) 
+          inspect_original if @original.nil?
+          case m[2]
+          when @original.audio_stream_id
+            codec_type = "audio"
+            codec = @original.audio_codec
+          when @original.video_stream_id
+            codec_type = "video"
+            codec = @original.video_codec
+          else
+            codec_type = "video or audio"
+            codec = "unknown"
+          end
+          
+          raise TranscoderError::InvalidFile, "Unsupported #{codec_type} codec: #{codec} (id=#{m[1]}, stream=#{m[2]})"
+          #raise TranscoderError, "Codec #{m[1]} not supported (in stream #{m[2]})"
         end
         
         # Could not open './spec/../config/../tmp/processed/1/kites-1.avi'
@@ -97,11 +123,11 @@ module RVideo
         if details =~ /video:/ 
           #success = /^frame=\s*(\S*)\s*q=(\S*).*L.*size=\s*(\S*)\s*time=\s*(\S*)\s*bitrate=\s*(\S*)\s*/m.match(details)
           @frame = sanitary_match(/frame=\s*(\S*)/, details)
-          @fps = sanitary_match(/fps=\s*(\S*)/, details)
+          @output_fps = sanitary_match(/fps=\s*(\S*)/, details)
           @q = sanitary_match(/\s+q=\s*(\S*)/, details)
           @size = sanitary_match(/size=\s*(\S*)/, details)
           @time = sanitary_match(/time=\s*(\S*)/, details)
-          @bitrate = sanitary_match(/bitrate=\s*(\S*)/, details)
+          @output_bitrate = sanitary_match(/bitrate=\s*(\S*)/, details)
           
           @video_size = /video:\s*(\S*)/.match(details)[1]
           @audio_size = /audio:\s*(\S*)/.match(details)[1]
